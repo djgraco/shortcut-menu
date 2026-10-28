@@ -36,10 +36,13 @@
             </intent-filter>
         </activity>
 
-        <!-- Opened by the service. It shows over the lock screen, since the shortcut works there. -->
+        <!-- Opened by the service. It shows over the lock screen, since the shortcut works there. It
+             is direct boot aware, like the service, so that it works after a restart before the
+             phone is first unlocked. -->
         <activity
             android:name=".MenuActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:directBootAware="true"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
@@ -51,8 +54,11 @@
             android:name=".InstallResultReceiver"
             android:exported="false" />
 
+        <!-- Direct boot aware: until the phone is first unlocked after a restart, Android runs only
+             the accessibility services that are, and ignores the shortcut for any other. -->
         <service
             android:name=".ShortcutMenuService"
+            android:directBootAware="true"
             android:exported="true"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

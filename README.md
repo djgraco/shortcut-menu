@@ -17,6 +17,10 @@ Safe mode never leaves you without a screen reader unless you chose that. If it 
 
 The menu speaks American English on phones set to the United States, and British English everywhere else. Pico reads only the Latin alphabet, so in safe mode the menu names each service in English. A service with no English name, in an alphabet Pico cannot read, is called "Screen reader 1", "Screen reader 2" and so on, in menu order. Each press of volume up still changes the volume, so a single press meant for the volume does only that.
 
+## After a restart
+
+The menu works after the phone restarts, before you first unlock it, such as when your screen reader fails to start. Until that first unlock, Android runs only the accessibility services that are made for it, and Shortcut Menu is one of them. It keeps its settings and Pico's voices where it can read them then. If the phone's speech engine does not run before the first unlock, the menu speaks with Pico instead. Screen readers that are not made to run before the first unlock cannot be turned on until then: TalkBack can.
+
 ## Set up
 
 1.  Download `shortcut-menu.apk` from the [latest release](https://github.com/aaron-gh/shortcut-menu/releases/latest) and install it. Android asks you to allow installing apps from your browser or file manager the first time.

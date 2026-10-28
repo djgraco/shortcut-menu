@@ -4,6 +4,7 @@ import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -12,6 +13,7 @@ import android.content.res.Resources
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.os.UserManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import java.util.Locale
@@ -30,7 +32,7 @@ data class TtsEngine(val packageName: String, val label: String, val current: Bo
 /** Reads and changes which accessibility services are on, and which ones the menu offers. */
 class Services(private val context: Context) {
   private val accessibilityManager = context.getSystemService(AccessibilityManager::class.java)
-  private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+  private val prefs = devicePrefs(context)
 
   /** This app's own service, which never appears in the menu. */
   val self: String = ComponentName(context, ShortcutMenuService::class.java).flattenToString()
@@ -385,6 +387,19 @@ class Services(private val context: Context) {
     const val STOP_TIMEOUT_MS = 3000L
     // Settings.Secure.ACCESSIBILITY_SHORTCUT_DIALOG_SHOWN, which the SDK hides.
     const val KEY_SHORTCUT_DIALOG_SHOWN = "accessibility_shortcut_dialog_shown"
+
+    /**
+     * The settings, kept in device protected storage so that the menu can read them after a restart,
+     * before the phone is first unlocked. Settings saved in the usual storage, by versions before,
+     * move there once the phone is unlocked.
+     */
+    fun devicePrefs(context: Context): SharedPreferences {
+      val device = context.createDeviceProtectedStorageContext()
+      if (context.getSystemService(UserManager::class.java).isUserUnlocked) {
+        device.moveSharedPreferencesFrom(context, PREFS)
+      }
+      return device.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    }
 
     fun componentOf(info: AccessibilityServiceInfo): String =
       ComponentName(info.resolveInfo.serviceInfo.packageName, info.resolveInfo.serviceInfo.name)

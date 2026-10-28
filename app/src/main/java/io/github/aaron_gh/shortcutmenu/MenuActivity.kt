@@ -60,7 +60,7 @@ class MenuActivity : Activity() {
     // The application context, since switching screen readers outlives this screen.
     services = Services(applicationContext)
     entries = if (services.canWrite()) services.menuEntries() else emptyList()
-    speaker = SystemSpeaker(this)
+    speaker = SystemSpeaker(this) { useOwnSpeech() }
 
     screenReaderOn = getSystemService(AccessibilityManager::class.java).isTouchExplorationEnabled
     if (screenReaderOn) {
@@ -275,11 +275,20 @@ class MenuActivity : Activity() {
       return
     }
     safeMode = true
+    if (speaker is PicoSpeaker) {
+      // The menu already speaks with Pico, since the phone's engine could not start.
+      turnOffScreenReaders()
+      return
+    }
+    pendingPico?.shutdown()
     // Pico is tried before any screen reader turns off, so that if it cannot speak, or takes the app
     // down with it, the screen readers are still on. If it cannot, the phone's speech stays.
     val pico = PicoSpeaker(this)
     pendingPico = pico
     pico.whenReady { works ->
+      if (pendingPico !== pico) {
+        return@whenReady
+      }
       pendingPico = null
       if (finished) {
         pico.shutdown()
@@ -294,6 +303,33 @@ class MenuActivity : Activity() {
         pico.shutdown()
       }
       turnOffScreenReaders()
+    }
+  }
+
+  /**
+   * Speaks with Pico when the phone's speech engine cannot start, such as after a restart, before
+   * the phone is first unlocked, with no engine that runs until then. Pico then says what the
+   * phone's engine was to say. Safe mode is still there for an engine that starts but does not speak.
+   */
+  private fun useOwnSpeech() {
+    if (finished || safeMode || pendingPico != null) {
+      return
+    }
+    val pico = PicoSpeaker(this)
+    pendingPico = pico
+    pico.whenReady { works ->
+      if (pendingPico !== pico) {
+        return@whenReady
+      }
+      pendingPico = null
+      if (finished || !works) {
+        pico.shutdown()
+        return@whenReady
+      }
+      val unsaid = (speaker as? SystemSpeaker)?.takeUnsaid()
+      speaker.shutdown()
+      speaker = pico
+      unsaid?.let { text -> speaker.speak(text, true, if (onSpoken != null) ({ runOnSpoken() }) else null) }
     }
   }
 

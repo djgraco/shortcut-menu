@@ -31,13 +31,21 @@ private val SPEECH_ATTRIBUTES: AudioAttributes =
     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
     .build()
 
-/** Speaks with the phone's text-to-speech engine. */
-class SystemSpeaker(context: Context) : Speaker {
+/**
+ * Speaks with the phone's text-to-speech engine. If the engine cannot start, such as when none runs
+ * after a restart until the phone is first unlocked, it calls [onFailed] on the main thread, and
+ * [takeUnsaid] then gives what it was waiting to say.
+ */
+class SystemSpeaker(context: Context, private val onFailed: () -> Unit = {}) : Speaker {
   private val handler = Handler(Looper.getMainLooper())
   private var tts: TextToSpeech? = TextToSpeech(context) { status -> onInit(status) }
   private var ready = false
   private var pending: String? = null
   private var done: (() -> Unit)? = null
+  private var stopped = false
+
+  /** What the engine was waiting to say, if anything, which it now never will. */
+  fun takeUnsaid(): String? = pending.also { pending = null }
 
   override fun speak(text: String, flush: Boolean, done: (() -> Unit)?) {
     this.done = done
@@ -55,16 +63,19 @@ class SystemSpeaker(context: Context) : Speaker {
   }
 
   override fun shutdown() {
+    stopped = true
     done = null
     tts?.shutdown()
     tts = null
   }
 
   private fun onInit(status: Int) {
-    val engine = tts ?: return
     if (status != TextToSpeech.SUCCESS) {
+      // With no engine at all, this runs inside the constructor, so it waits until that is done.
+      handler.post { if (!stopped) onFailed() }
       return
     }
+    val engine = tts ?: return
     engine.setAudioAttributes(SPEECH_ATTRIBUTES)
     engine.setOnUtteranceProgressListener(
       object : UtteranceProgressListener() {

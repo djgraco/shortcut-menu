@@ -1,6 +1,7 @@
 package io.github.aaron_gh.shortcutmenu
 
 import android.content.Context
+import android.os.UserManager
 import java.io.File
 import java.util.Locale
 
@@ -50,10 +51,16 @@ class PicoTts private constructor(private var handle: Long) {
 
     /**
      * Pico reads its voices from files, so they are copied out of the assets the first time. The copy
-     * is renamed into place only once it is whole.
+     * is renamed into place only once it is whole. They are kept in device protected storage, so that
+     * safe mode works after a restart, before the phone is first unlocked. Copies that versions before
+     * made in the usual storage are deleted once the phone is unlocked.
      */
     private fun voiceFile(context: Context, name: String): File {
-      val dir = File(context.noBackupFilesDir, "pico").apply { mkdirs() }
+      if (context.getSystemService(UserManager::class.java).isUserUnlocked) {
+        File(context.noBackupFilesDir, "pico").deleteRecursively()
+      }
+      val device = context.createDeviceProtectedStorageContext()
+      val dir = File(device.noBackupFilesDir, "pico").apply { mkdirs() }
       val file = File(dir, name)
       if (!file.exists()) {
         val partial = File(dir, "$name.partial")
